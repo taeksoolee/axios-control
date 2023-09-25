@@ -37,13 +37,20 @@ export class Request {
       signal: controller.signal,
     });
 
-    type Parse = <T>(input: (input: unknown) => T) =>  Promise<T>;
+    type Parser = <T>(parse: (input: unknown) => T) =>  Promise<T | null>;
 
-    const parse: Parse = (input) => response.then(res => input(res.data));
+    const parser: Parser = (parse) => response.then(res => {
+      try {
+        return parse(res.data)
+      } catch (err) {
+        console.warn(err);
+        return null;
+      }
+    });
 
     return {
       response,
-      parse,
+      parser,
       controller,
     };
   }
