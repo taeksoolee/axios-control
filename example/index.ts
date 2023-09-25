@@ -9,12 +9,12 @@ const request = new Request({
 
 request.token = 'eWoucGFya0BoYWV6b29tLmNvbToxMjM0';
 
-const wrapDjangoPaginationList = (any: z.ZodTypeAny) => (
+const wrapDjangoPaginationList = <T extends z.ZodType>(any: T) => (
   z.object({
     count: z.number(),
     next: z.number().nullable(),
     previous: z.number().nullable(),
-    results: any,
+    results: any as T,
   })
 );
 
@@ -78,12 +78,11 @@ const Resource = z.object({
 
 
 (async function () {
-
   const Response = wrapDjangoPaginationList(z.array(Resource));
-
-  const resource = await request.get('/resource').parser(Response.parse);
+  const resource = await request.get('/resource').parse(Response);
 
   if (!resource) return;
+
   console.log(resource.results.forEach((r) => {
     console.log(r);
   }));

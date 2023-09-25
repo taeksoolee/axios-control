@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, CreateAxiosDefaults, AxiosProgressEvent } from 'axios';
+import z from 'zod';
 
 type RequestConfig = {
   authorizationKey?: string,
@@ -37,20 +38,18 @@ export class Request {
       signal: controller.signal,
     });
 
-    type Parser = <T>(parse: (input: unknown) => T) =>  Promise<T | null>;
-
-    const parser: Parser = (parse) => response.then(res => {
+    type Parse = <T extends z.ZodTypeAny>(unknownZod: T) =>  Promise<ReturnType<T['parse']> | null>;
+    const parse: Parse = (unknownZod) => response.then(res => {
       try {
-        return parse(res.data)
+        return unknownZod.parse(res.data);
       } catch (err) {
-        console.warn(err);
         return null;
       }
     });
 
     return {
       response,
-      parser,
+      parse,
       controller,
     };
   }
@@ -81,9 +80,14 @@ export class Request {
       onDownloadProgress: (e) => onProgress('download', e),
     });
 
-    type Parse = <T>(input: (input: unknown) => T) =>  Promise<T>;
-
-    const parse: Parse = (input) => response.then(res => input(res.data));
+    type Parse = <T extends z.ZodTypeAny>(unknownZod: T) =>  Promise<ReturnType<T['parse']> | null>;
+    const parse: Parse = (unknownZod) => response.then(res => {
+      try {
+        return unknownZod.parse(res.data);
+      } catch (err) {
+        return null;
+      }
+    });
 
     return {
       response,
