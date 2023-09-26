@@ -1,13 +1,43 @@
-import { Request } from '../src';
+import axios from 'axios';
+import { Request, RequestExpand } from '../src';
 import z from 'zod';
 
-const request = new Request({
-  baseURL: '//3.35.223.111/api',
-}, {
-  authorizationPrefix: 'Basic'
-});
+const request = new RequestExpand(
+  {
+    authorizationPrefix: 'Bearer',
+    refreshFn(tokens, baseURL) {
+      const request = new Request({}, {
+        baseURL
+      });
 
-request.token = 'eWoucGFya0BoYWV6b29tLmNvbToxMjM0';
+      const RefreshResult = z.object({
+        access: z.string(),
+      });
+      request.lastSlash = true;
+      
+      return request.post('/user/token/refresh', {
+        refresh: tokens.refresh,
+      }).parse(RefreshResult).then(res => res?.access ?? '');
+    },
+  },
+  {
+    baseURL: '//3.35.223.111/api',
+  }
+);
+
+const reqeust2 = new RequestExpand(
+  {
+    authorizationPrefix: 'JWT',
+  }, {
+    baseURL: '//3.35.223.112/api',
+  }
+)
+
+// request.token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNjk1NzgyODA3LCJpYXQiOjE2OTU2OTY0MDcsImp0aSI6Ijk0NGQyYTg4NGZhOTQxYWRhMWUxMDU5M2NlMTdmOGIyIiwiZW1haWwiOiJ0cy5sZWVAaGFlem9vbS5jb20iLCJuYW1lIjoiIn0.sYmNpZQZwfTeW7zL8nbHraiAykFNyvy_pBfTjYyZ3Ew';
+request.sign({
+  access: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTY5NjkxNjI4MSwiaWF0IjoxNjk1NzA2NjgxLCJqdGkiOiIzMzMxZDNiZWVlMjA0YjYwOWYzZTI4ODg1NDQ3MDZmNSIsImVtYWlsIjoidHMubGVlQGhhZXpvb20uY29tIiwibmFtZSI6IiJ9.9FkwQ6oI7WUCzEkQQhPm-KsAmNA9Zs-gGo9FzgO83nE'
+});
+request.lastSlash = true;
 
 const wrapDjangoPaginationList = <T extends z.ZodType>(any: T) => (
   z.object({
@@ -71,21 +101,42 @@ const Resource = z.object({
     capacity: z.number().nullable(),
     install_date: z.string().regex(/^(?:19|20)\d\d-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01]))$/).nullable(),
     kpx_identifier: KpxIdentifier.nullable(),
-    inverter: z.array(Inverter).nonempty(),
+    // inverter: z.array(Inverter).nonempty(),
+    inverter: z.array(Inverter),
     ess: z.array(Ess).optional(),
   }),
 });
 
+const Response = wrapDjangoPaginationList(z.array(Resource));
 
 (async function () {
-  const Response = wrapDjangoPaginationList(z.array(Resource));
-  const resource = await request.get('/resource').parse(Response);
+  // request.syncToken(reqeust2);
+  // const resource = await request.get('/resource').parse(Response);
+  // const resource = await request.getWithVerify('/resource').parse(Response);
+  // const resources = await request.rest('/resource').getAll().parse(Response);
+  // const resourceById = await request.rest('/resource').getById(2).parse(Resource);
 
-  if (!resource) return;
+  // console.log(resourceById);
+  // console.log(resources);
 
-  console.log(resource.results.forEach((r) => {
-    console.log(r);
-  }));
+  // if (!resources) return;
+
+  // console.log(resources.results.forEach((r) => {
+  //   console.log(r);
+  // }));
+
+  window.document.getElementById('refreshBtn')?.addEventListener('click', () => {
+    request.refresh();
+  });
+
+  window.document.getElementById('fetchBtn')?.addEventListener('click', async () => {
+    const resource = await request.getWithVerify('/resource').parse(Response);
+    console.log(resource);
+  });
+
+  window.document.getElementById('getJWTInfo')?.addEventListener('click', () => {
+    console.log('current jwt payload', request.currentJWTPayload);
+  })
 })();
 
 
